@@ -22,10 +22,7 @@ class Settings(BaseSettings):
     nats_password: Optional[str] = None
     nats_servers: List[str] = []
     
-    # MongoDB Configuration
-    mongo_url: str = "mongodb://localhost:27017"
-    mongo_db_name: str = "centerfuze"
-    
+                
     # Redis Configuration (for session/cache)
     redis_url: str = "redis://localhost:6379/0"
     
@@ -59,12 +56,8 @@ class Settings(BaseSettings):
         if os.getenv("NATS_PASSWORD"):
             self.nats_password = os.getenv("NATS_PASSWORD")
             
-        if os.getenv("MONGO_URL"):
-            self.mongo_url = os.getenv("MONGO_URL")
-            
-        if os.getenv("MONGO_DB_NAME"):
-            self.mongo_db_name = os.getenv("MONGO_DB_NAME")
-            
+        if os.getenv("            self.            
+        if os.getenv("            self.            
         if os.getenv("REDIS_URL"):
             self.redis_url = os.getenv("REDIS_URL")
             

@@ -6,9 +6,6 @@ import logging
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from pymongo.database import Database
-from pymongo.errors import DuplicateKeyError
-from pymongo import ASCENDING, DESCENDING
 
 from ..models.organization import (
     Organization, OrganizationSettings, OrganizationLimits,
@@ -38,7 +35,7 @@ class OrganizationService:
             org_id = f"org_{uuid.uuid4().hex[:8]}"
             
             # Check if name already exists
-            existing = self.orgs_collection.find_one({"name": request.name})
+            existing = await self.db_client.find_one("orgs_collection", {"name": request.name})
             if existing:
                 raise ValueError(f"Organization with name '{request.name}' already exists")
                 
@@ -63,8 +60,8 @@ class OrganizationService:
             }
             
             # Insert organization
-            result = self.orgs_collection.insert_one(org_doc)
-            org_doc["_id"] = str(result.inserted_id)
+            result = await self.db_client.insert_one("orgs_collection", org_doc)
+            org_doc["_id"] = result
             
             # Create default settings
             await self._create_default_settings(org_id)
@@ -99,7 +96,7 @@ class OrganizationService:
     async def get_organization(self, org_id: str) -> Optional[Organization]:
         """Get organization by ID"""
         try:
-            org_doc = self.orgs_collection.find_one({"org_id": org_id})
+            org_doc = await self.db_client.find_one("orgs_collection", {"org_id": org_id})
             if not org_doc:
                 return None
                 
@@ -172,13 +169,13 @@ class OrganizationService:
                 return False
                 
             # Delete organization
-            self.orgs_collection.delete_one({"org_id": org_id})
+            await self.db_client.delete_one("orgs_collection", {"org_id": org_id})
             
             # Delete settings
-            self.settings_collection.delete_one({"org_id": org_id})
+            await self.db_client.delete_one("settings_collection", {"org_id": org_id})
             
             # Delete limits
-            self.limits_collection.delete_one({"org_id": org_id})
+            await self.db_client.delete_one("limits_collection", {"org_id": org_id})
             
             # Publish event
             await self.event_publisher.publish(
@@ -221,11 +218,11 @@ class OrganizationService:
             sort_spec = [(request.sort_by, sort_order)]
             
             # Get total count
-            total_count = self.orgs_collection.count_documents(query)
+            total_count = await self.db_client.count_documents("orgs_collection", query)
             
             # Get organizations
             skip = (request.page - 1) * request.limit
-            cursor = self.orgs_collection.find(query).sort(sort_spec).skip(skip).limit(request.limit)
+            cursor = await self.db_client.find("orgs_collection", query).sort(sort_spec).skip(skip).limit(request.limit)
             
             organizations = []
             for doc in cursor:
@@ -248,7 +245,7 @@ class OrganizationService:
                 ]
             }
             
-            cursor = self.orgs_collection.find(query).limit(limit)
+            cursor = await self.db_client.find("orgs_collection", query).limit(limit)
             organizations = []
             
             for doc in cursor:
@@ -266,7 +263,7 @@ class OrganizationService:
     async def get_organization_settings(self, org_id: str) -> Optional[OrganizationSettings]:
         """Get organization settings"""
         try:
-            settings_doc = self.settings_collection.find_one({"org_id": org_id})
+            settings_doc = await self.db_client.find_one("settings_collection", {"org_id": org_id})
             if not settings_doc:
                 # Create default settings if they don't exist
                 return await self._create_default_settings(org_id)
@@ -336,7 +333,7 @@ class OrganizationService:
     async def get_organization_limits(self, org_id: str) -> Optional[OrganizationLimits]:
         """Get organization limits"""
         try:
-            limits_doc = self.limits_collection.find_one({"org_id": org_id})
+            limits_doc = await self.db_client.find_one("limits_collection", {"org_id": org_id})
             if not limits_doc:
                 # Create default limits if they don't exist
                 return await self._create_default_limits(org_id)
@@ -455,8 +452,8 @@ class OrganizationService:
                 "updated_at": now
             }
             
-            result = self.settings_collection.insert_one(settings_doc)
-            settings_doc["_id"] = str(result.inserted_id)
+            result = await self.db_client.insert_one("settings_collection", settings_doc)
+            settings_doc["_id"] = result
             
             return OrganizationSettings(**settings_doc)
             
@@ -490,8 +487,8 @@ class OrganizationService:
                 "updated_at": now
             }
             
-            result = self.limits_collection.insert_one(limits_doc)
-            limits_doc["_id"] = str(result.inserted_id)
+            result = await self.db_client.insert_one("limits_collection", limits_doc)
+            limits_doc["_id"] = result
             
             return OrganizationLimits(**limits_doc)
             

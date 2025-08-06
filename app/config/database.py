@@ -4,9 +4,6 @@ Database configuration and management
 
 import logging
 from typing import Optional
-from pymongo import MongoClient
-from pymongo.database import Database
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +13,7 @@ class DatabaseManager:
     
     def __init__(self, settings):
         self.settings = settings
-        self.client: Optional[MongoClient] = None
+        self.client: Optional[DatabaseClient] = None
         self.database: Optional[Database] = None
         
     def connect(self) -> None:
@@ -24,7 +21,7 @@ class DatabaseManager:
         try:
             logger.info(f"Connecting to MongoDB at {self.settings.mongo_url}")
             
-            self.client = MongoClient(
+            self.client = DatabaseClient(
                 self.settings.mongo_url,
                 serverSelectionTimeoutMS=5000,
                 connectTimeoutMS=10000
