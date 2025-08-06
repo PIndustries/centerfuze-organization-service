@@ -1,6 +1,6 @@
 # Core dependencies
 nats-py==2.7.2
-pymongo==4.4.1
+pymongo==4.6.3
 pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
