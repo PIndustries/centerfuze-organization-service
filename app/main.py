@@ -13,7 +13,9 @@ from nats.errors import ConnectionClosedError, TimeoutError
 from .config import get_settings
 from .config.database import DatabaseManager
 from .controllers import OrganizationController, HealthController
+from .controllers.module_controller import ModuleController
 from .services import OrganizationService, EventPublisher
+from .services.module_service import ModuleService
 from .utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -54,8 +56,14 @@ class OrganizationServiceApp:
                 event_publisher
             )
             
+            module_service = ModuleService(
+                self.db_manager.get_database(),
+                event_publisher
+            )
+            
             # Initialize controllers
             organization_controller = OrganizationController(organization_service)
+            module_controller = ModuleController(module_service)
             health_controller = HealthController(self.db_manager, self.nc)
             
             # Register NATS handlers with proper topic names
@@ -63,6 +71,9 @@ class OrganizationServiceApp:
             
             # Organization topics
             subscriptions.extend(await self._register_organization_handlers(organization_controller))
+            
+            # Module topics
+            subscriptions.extend(await self._register_module_handlers(module_controller))
             
             # Health topics
             subscriptions.extend(await health_controller.register_handlers(self.nc))
@@ -99,6 +110,22 @@ class OrganizationServiceApp:
             # Limits operations
             await nc.subscribe("organization.limits.get", cb=controller.handle_get_limits),
             await nc.subscribe("organization.limits.update", cb=controller.handle_update_limits)
+        ]
+    
+    async def _register_module_handlers(self, controller: ModuleController):
+        """Register module handlers"""
+        nc = self.nc
+        return [
+            # Module management operations
+            await nc.subscribe("module.get", cb=controller.handle_get_modules),
+            await nc.subscribe("module.toggle", cb=controller.handle_toggle_module),
+            await nc.subscribe("module.bulk_update", cb=controller.handle_bulk_update_modules),
+            await nc.subscribe("module.status", cb=controller.handle_get_module_status),
+            await nc.subscribe("module.available", cb=controller.handle_get_available_modules),
+            await nc.subscribe("module.usage.stats", cb=controller.handle_module_usage_stats),
+            
+            # Listen for module events from admin service
+            await nc.subscribe("centerfuze.admin.module.>", cb=controller.handle_module_event)
         ]
             
     async def stop(self):
